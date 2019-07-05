@@ -108,7 +108,7 @@ impl Material for Dielectric {
         if r_in.direction().dot(rec.normal) > 0.0 {
             outward_normal = -rec.normal;
             ni_over_nt = self.ref_idx;
-            cosine =self.ref_idx * r_in.direction().dot(rec.normal) / r_in.direction().magnitude();
+            cosine = self.ref_idx * r_in.direction().dot(rec.normal) / r_in.direction().magnitude();
         } else {
             outward_normal = rec.normal;
             ni_over_nt = 1.0 / self.ref_idx;

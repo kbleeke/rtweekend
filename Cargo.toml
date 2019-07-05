@@ -4,13 +4,21 @@ version = "0.1.0"
 authors = ["pluto"]
 edition = "2018"
 
+[lib]
+path = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "raytrace"
+path = "src/main.rs"
+
 [dependencies]
-glutin = "0.22.0-alpha1"
-gl = "0.12.0"
+winit = "0.19.1"
 rand = "0.6.5"
 rayon = "1.1.0"
+vulkano = "0.13.0"
+vulkano-win = "0.13.0"
+
 
 [dependencies.cgmath]
 version = "0.17.0"
