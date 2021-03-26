@@ -5,6 +5,8 @@ use rand::random;
 use rayon::prelude::*;
 
 use raytrace::{camera::*, hitable_list::*, material::*, ray::*, sphere::*, Vec3};
+use wgpu::{BackendBit, RequestAdapterOptions, RequestAdapterOptionsBase, Surface, util::{BufferInitDescriptor, DeviceExt}};
+use winit::{event_loop::EventLoop, window::WindowBuilder};
 
 const NX: i32 = 600;
 const NY: i32 = 300;
@@ -122,6 +124,45 @@ fn fill_buf(buffer: &mut Vec<[u8; 4]>) {
     println!("Rendered in {:?}", start.elapsed());
 }
 
-fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+    let event_loop = EventLoop::new();
+    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let size = window.inner_size();
 
+    let instance = wgpu::Instance::new(BackendBit::PRIMARY);
+    let surface = unsafe { instance.create_surface(&window) };
+    let adapter = instance
+        .request_adapter(&RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: Some(&surface),
+        })
+        .await
+        .unwrap();
+
+    let (device, mut queue) = adapter
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                ..Default::default()
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    let sc_desc = wgpu::SwapChainDescriptor {
+        usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+        format: adapter.get_swap_chain_preferred_format(&surface),
+        width: size.width,
+        height: size.height,
+        present_mode: wgpu::PresentMode::Mailbox,
+    };
+
+    let encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: None
+    });
+
+    let swapchain = device.create_swap_chain(&surface, &sc_desc);
+
+    let frame = swapchain.get_current_frame().unwrap().output;
 }
