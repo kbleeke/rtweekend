@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use cgmath::{conv::array4, prelude::*, vec3, Vector3};
+use nalgebra_glm::vec3;
 use rand::random;
 use rayon::prelude::*;
 use winit::{ControlFlow, Event, EventsLoop, WindowBuilder, WindowEvent};
@@ -29,12 +29,12 @@ fn random_scene() -> HitableList {
                 b as f32 + 0.9 * random::<f32>(),
             );
 
-            if vec3(4., 0.2, 0.).distance(center) > 0.9 {
+            if vec3(4., 0.2, 0.).metric_distance(&center) > 0.9 {
                 let mat: Arc<dyn Material> = if choose_mat < 0.8 {
-                    Lambertian::new(random::<Vec3>().mul_element_wise(random::<Vec3>()))
+                    Lambertian::new(random::<Vec3>().component_mul(&random::<Vec3>()))
                 } else if choose_mat < 0.95 {
                     Metal::new(
-                        0.5 * random::<Vec3>().add_element_wise(1.0),
+                        0.5 * random::<Vec3>().add_scalar(1.0),
                         0.5 + random::<f32>(),
                     )
                 } else {
@@ -65,7 +65,7 @@ fn color(r: &Ray, world: &dyn Hitable, depth: i32) -> Vec3 {
         match rec.material.scatter(r, &mut rec) {
             Some(ref res) if depth < 50 => {
                 res.attenuation
-                    .mul_element_wise(color(&res.scattered, world, depth + 1))
+                    .component_mul(&color(&res.scattered, world, depth + 1))
             }
             _ => vec3(0.0, 0.0, 0.0),
         }
@@ -117,7 +117,7 @@ fn fill_buf(buffer: &mut Vec<[u8; 4]>) {
             col /= NS as f32;
             col = col.map(|c| c.sqrt());
             let col = col.map(|c| (255.99 * c) as u8);
-            array4(col.extend(1))
+            col.insert_row(3, 1).into()
         })
         .collect_into_vec(buffer);
 
@@ -130,7 +130,13 @@ fn main() {
     let mut buffer = Vec::with_capacity((NX * NY * 4) as usize);
     fill_buf(&mut buffer);
 
-    vulkan.draw_image(&buffer, Dimensions::Dim2d {width: NX as u32, height: NY as u32});
+    vulkan.draw_image(
+        &buffer,
+        Dimensions::Dim2d {
+            width: NX as u32,
+            height: NY as u32,
+        },
+    );
 
     vulkan.events_loop.run_forever(move |event| match event {
         Event::WindowEvent { ref event, .. } => match event {

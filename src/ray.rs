@@ -1,25 +1,23 @@
-use cgmath::Vector3;
-
 use crate::{material::Material, Vec3};
 pub struct Ray {
-    a: Vector3<f32>,
-    b: Vector3<f32>,
+    a: Vec3,
+    b: Vec3,
 }
 
 impl Ray {
-    pub fn new(a: Vector3<f32>, b: Vector3<f32>) -> Self {
+    pub fn new(a: Vec3, b: Vec3) -> Self {
         Self { a, b }
     }
 
-    pub fn origin(&self) -> Vector3<f32> {
+    pub fn origin(&self) -> Vec3 {
         self.a
     }
 
-    pub fn direction(&self) -> Vector3<f32> {
+    pub fn direction(&self) -> Vec3 {
         self.b
     }
 
-    pub fn point_at_parameter(&self, t: f32) -> Vector3<f32> {
+    pub fn point_at_parameter(&self, t: f32) -> Vec3 {
         self.a + t * self.b
     }
 }

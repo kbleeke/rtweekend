@@ -26,11 +26,16 @@ impl Hitable for HitableList {
 }
 
 trait OptionExt<T>: Sized {
-    fn inspect<F>(self, f: F) -> Self where F: FnMut(&mut T);
+    fn inspect<F>(self, f: F) -> Self
+    where
+        F: FnMut(&mut T);
 }
 
 impl<T> OptionExt<T> for Option<T> {
-    fn inspect<F>(mut self, mut f: F) -> Self where F: FnMut(&mut T) {
+    fn inspect<F>(mut self, mut f: F) -> Self
+    where
+        F: FnMut(&mut T),
+    {
         if let Some(ref mut t) = self {
             f(t);
         }

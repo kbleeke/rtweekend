@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cgmath::{vec3, InnerSpace};
+use nalgebra_glm::vec3;
 use rand::random;
 
 use crate::{ray::*, Vec3};
@@ -53,7 +53,7 @@ impl Material for Metal {
             scattered: Ray::new(rec.p, reflected + self.fuzz * random_in_unit_sphere()),
             attenuation: self.albedo,
         };
-        if scattered.scattered.direction().dot(rec.normal) > 0.0 {
+        if scattered.scattered.direction().dot(&rec.normal) > 0.0 {
             Some(scattered)
         } else {
             None
@@ -64,19 +64,19 @@ impl Material for Metal {
 fn random_in_unit_sphere() -> Vec3 {
     loop {
         let p = 2.0_f32 * random::<Vec3>() - vec3(1.0, 1.0, 1.0);
-        if p.magnitude2() >= 1.0 {
+        if p.magnitude_squared() >= 1.0 {
             break p;
         }
     }
 }
 
 fn reflect(v: Vec3, n: Vec3) -> Vec3 {
-    v - 2.0 * v.dot(n) * n
+    v - 2.0 * v.dot(&n) * n
 }
 
 fn refract(v: Vec3, n: Vec3, ni_over_nt: f32) -> Option<Vec3> {
     let uv = v.normalize();
-    let dt = uv.dot(n);
+    let dt = uv.dot(&n);
     let discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
 
     if discriminant > 0.0 {
@@ -105,14 +105,15 @@ impl Material for Dielectric {
         let outward_normal;
         let ni_over_nt;
         let cosine;
-        if r_in.direction().dot(rec.normal) > 0.0 {
+        if r_in.direction().dot(&rec.normal) > 0.0 {
             outward_normal = -rec.normal;
             ni_over_nt = self.ref_idx;
-            cosine = self.ref_idx * r_in.direction().dot(rec.normal) / r_in.direction().magnitude();
+            cosine =
+                self.ref_idx * r_in.direction().dot(&rec.normal) / r_in.direction().magnitude();
         } else {
             outward_normal = rec.normal;
             ni_over_nt = 1.0 / self.ref_idx;
-            cosine = -r_in.direction().dot(rec.normal) / r_in.direction().magnitude();
+            cosine = -r_in.direction().dot(&rec.normal) / r_in.direction().magnitude();
         }
 
         match refract(r_in.direction(), outward_normal, ni_over_nt) {

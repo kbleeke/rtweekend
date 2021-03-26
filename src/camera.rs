@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use cgmath::{prelude::*, vec3};
+use nalgebra_glm::vec3;
 use rand::random;
 
 use crate::{ray::Ray, Vec3};
@@ -8,7 +8,7 @@ use crate::{ray::Ray, Vec3};
 fn random_in_unit_disk() -> Vec3 {
     loop {
         let p = 2.0_f32 * vec3(random(), random(), 0.) - vec3(1., 1., 0.);
-        if p.dot(p) >= 1.0 {
+        if p.dot(&p) >= 1.0 {
             break p;
         }
     }
@@ -40,8 +40,8 @@ impl Camera {
         let half_width = aspect * half_height;
 
         let w = (origin - lookat).normalize();
-        let u = vup.cross(w).normalize();
-        let v = w.cross(u);
+        let u = vup.cross(&w).normalize();
+        let v = w.cross(&u);
 
         let lower_left_corner =
             origin - half_width * focus_dist * u - half_height * focus_dist * v - focus_dist * w;
