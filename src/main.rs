@@ -3,10 +3,8 @@ use std::{sync::Arc, time::Instant};
 use nalgebra_glm::vec3;
 use rand::random;
 use rayon::prelude::*;
-use winit::{ControlFlow, Event, EventsLoop, WindowBuilder, WindowEvent};
 
-use raytrace::{camera::*, hitable_list::*, material::*, ray::*, sphere::*, vulkan::*, Vec3};
-use vulkano::image::Dimensions;
+use raytrace::{camera::*, hitable_list::*, material::*, ray::*, sphere::*, Vec3};
 
 const NX: i32 = 600;
 const NY: i32 = 300;
@@ -125,24 +123,5 @@ fn fill_buf(buffer: &mut Vec<[u8; 4]>) {
 }
 
 fn main() {
-    let mut vulkan = Vulkan::initialize();
 
-    let mut buffer = Vec::with_capacity((NX * NY * 4) as usize);
-    fill_buf(&mut buffer);
-
-    vulkan.draw_image(
-        &buffer,
-        Dimensions::Dim2d {
-            width: NX as u32,
-            height: NY as u32,
-        },
-    );
-
-    vulkan.events_loop.run_forever(move |event| match event {
-        Event::WindowEvent { ref event, .. } => match event {
-            WindowEvent::CloseRequested => ControlFlow::Break,
-            _ => ControlFlow::Continue,
-        },
-        _ => ControlFlow::Continue,
-    });
 }
