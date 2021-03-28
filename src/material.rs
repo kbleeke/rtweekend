@@ -1,59 +1,79 @@
-use std::sync::Arc;
+use std::{f32::EPSILON, sync::Arc};
 
+use nalgebra::zero;
 use nalgebra_glm::vec3;
-use rand::random;
+use rand::{random, thread_rng, Rng};
 
-use crate::{ray::*, Vec3};
+use crate::{hit::hittable::HitRecord, hit::ray::*, texture::Texture, Vec3};
 
 pub struct Scattered {
     pub attenuation: Vec3,
-    pub scattered: Ray,
+    pub ray: Ray,
 }
 
 pub trait Material: Send + Sync {
-    fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<Scattered>;
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scattered>;
+
+    fn emitted(&self, u: f32, v: f32, p: &Vec3) -> Vec3 {
+        let _ = (u, v, p);
+        zero()
+    }
 }
 
 pub struct Lambertian {
-    albedo: Vec3,
+    albedo: Arc<dyn Texture>,
 }
 
 impl Lambertian {
-    pub fn new(albedo: Vec3) -> Arc<Self> {
+    pub fn new(albedo: Arc<dyn Texture>) -> Arc<Self> {
         Self { albedo }.into()
     }
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _r_in: &Ray, rec: &mut HitRecord) -> Option<Scattered> {
-        let target = rec.p + rec.normal + random_in_unit_sphere();
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scattered> {
+        let scatter_dir: Vec3 = rec.normal + random_in_unit_sphere().normalize();
+
+        let scatter_dir = if near_zero(&scatter_dir) {
+            rec.normal
+        } else {
+            scatter_dir
+        };
+
         Some(Scattered {
-            scattered: Ray::new(rec.p, target - rec.p),
-            attenuation: self.albedo,
+            ray: Ray::new(rec.p, scatter_dir, r_in.time()),
+            attenuation: self.albedo.value(rec.uv.u, rec.uv.v, &rec.p),
         })
     }
 }
 
+fn near_zero(v: &Vec3) -> bool {
+    v[0].abs() < EPSILON && v[1].abs() < EPSILON && v[2].abs() < EPSILON
+}
 pub struct Metal {
-    albedo: Vec3,
+    albedo: Arc<dyn Texture>,
     fuzz: f32,
 }
 
 impl Metal {
-    pub fn new(albedo: Vec3, f: f32) -> Arc<Self> {
+    pub fn new(albedo: Arc<dyn Texture>, f: f32) -> Arc<Self> {
         let fuzz = f.min(1.0);
         Self { albedo, fuzz }.into()
     }
 }
 
 impl Material for Metal {
-    fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<Scattered> {
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scattered> {
         let reflected = reflect(r_in.direction().normalize(), rec.normal);
         let scattered = Scattered {
-            scattered: Ray::new(rec.p, reflected + self.fuzz * random_in_unit_sphere()),
-            attenuation: self.albedo,
+            ray: Ray::new(
+                rec.p,
+                reflected + self.fuzz * random_in_unit_sphere(),
+                r_in.time(),
+            ),
+            attenuation: self.albedo.value(rec.uv.u, rec.uv.v, &rec.p),
         };
-        if scattered.scattered.direction().dot(&rec.normal) > 0.0 {
+        if scattered.ray.direction().dot(&rec.normal) > 0.0 {
             Some(scattered)
         } else {
             None
@@ -63,10 +83,16 @@ impl Material for Metal {
 
 fn random_in_unit_sphere() -> Vec3 {
     loop {
-        let p = 2.0_f32 * random::<Vec3>() - vec3(1.0, 1.0, 1.0);
+        let mut rng = thread_rng();
+        let p: Vec3 = vec3(
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+        );
         if p.magnitude_squared() >= 1.0 {
-            break p;
+            continue;
         }
+        return p;
     }
 }
 
@@ -98,7 +124,7 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, r_in: &Ray, rec: &mut HitRecord) -> Option<Scattered> {
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scattered> {
         let reflected = reflect(r_in.direction(), rec.normal);
         let attenuation = vec3(1.0, 1.0, 1.0);
 
@@ -118,12 +144,12 @@ impl Material for Dielectric {
 
         match refract(r_in.direction(), outward_normal, ni_over_nt) {
             Some(refracted) if random::<f32>() >= schlick(cosine, self.ref_idx) => Scattered {
-                scattered: Ray::new(rec.p, refracted),
+                ray: Ray::new(rec.p, refracted, r_in.time()),
                 attenuation,
             }
             .into(),
             _ => Scattered {
-                scattered: Ray::new(rec.p, reflected),
+                ray: Ray::new(rec.p, reflected, r_in.time()),
                 attenuation,
             }
             .into(),
@@ -135,4 +161,24 @@ fn schlick(cosine: f32, ref_idx: f32) -> f32 {
     let mut r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
     r0 *= r0;
     r0 + (1.0 - r0) * (1.0 - cosine).powf(5.0)
+}
+
+pub struct DiffuseLight {
+    emit: Arc<dyn Texture>,
+}
+
+impl DiffuseLight {
+    pub fn new(emit: Arc<dyn Texture>) -> Arc<Self> {
+        Arc::new(Self { emit })
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<Scattered> {
+        None
+    }
+
+    fn emitted(&self, u: f32, v: f32, p: &Vec3) -> Vec3 {
+        self.emit.value(u, v, p)
+    }
 }

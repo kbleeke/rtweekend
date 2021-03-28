@@ -18,5 +18,15 @@ rand = "0.8.3"
 rayon = "1.5.0"
 nalgebra = { version = "0.25.3", features = ["rand"] }
 nalgebra-glm = "0.11.0"
-wgpu = "0.7"
-tokio = { version = "1.4", features = ["macros", "rt"]}
+pixels = { git = "https://github.com/parasyte/pixels" }
+bytemuck = "1.5.1"
+once_cell = "1"
+image = {version = "0.23", default-features = false, features = ["jpeg"] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+incremental = true
+overflow-checks = true
+# lto = "thin"

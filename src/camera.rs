@@ -1,16 +1,20 @@
 use std::f32::consts::PI;
 
 use nalgebra_glm::vec3;
-use rand::random;
+use rand::{thread_rng, Rng};
 
-use crate::{ray::Ray, Vec3};
+use crate::{hit::ray::Ray, Vec3};
 
 fn random_in_unit_disk() -> Vec3 {
     loop {
-        let p = 2.0_f32 * vec3(random(), random(), 0.) - vec3(1., 1., 0.);
-        if p.dot(&p) >= 1.0 {
-            break p;
+        let mut rng = thread_rng();
+        let x = rng.gen_range(-1..1);
+        let y = rng.gen_range(-1..1);
+        let p: Vec3 = vec3(x, y, 0).cast();
+        if p.norm_squared() >= 1.0 {
+            continue;
         }
+        return p;
     }
 }
 
@@ -22,6 +26,8 @@ pub struct Camera {
     u: Vec3,
     v: Vec3,
     lens_radius: f32,
+    time0: f32,
+    time1: f32,
 }
 
 impl Camera {
@@ -33,6 +39,8 @@ impl Camera {
         aspect: f32,
         aperture: f32,
         focus_dist: f32,
+        time0: f32,
+        time1: f32,
     ) -> Self {
         let lens_radius = aperture / 2.;
         let theta = vfov * PI / 180.0;
@@ -56,16 +64,22 @@ impl Camera {
             u,
             v,
             lens_radius,
+            time0,
+            time1,
         }
     }
 
     pub fn get_ray(&self, s: f32, t: f32) -> Ray {
         let rd = self.lens_radius * random_in_unit_disk();
         let offset = self.u * rd.x + self.v * rd.y;
+
+        let time = thread_rng().gen_range(self.time0..self.time1);
+
         // let offset = Vec3::zero();
         Ray::new(
             self.origin + offset,
             self.lower_left_corner + s * self.horizontal + t * self.vertical - self.origin - offset,
+            time,
         )
     }
 }
