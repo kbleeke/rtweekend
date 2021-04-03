@@ -15,6 +15,7 @@ use transform::HitableExt;
 use volume::ConstantMedium;
 
 pub mod camera;
+pub mod containers;
 pub mod hit;
 pub mod materials;
 pub mod math;

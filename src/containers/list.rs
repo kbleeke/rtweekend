@@ -1,4 +1,4 @@
-use super::{surrounding_box, Aabb, HitRecord, Hitable, Ray};
+use crate::hit::{surrounding_box, Aabb, HitRecord, Hitable, Ray};
 
 impl<T> Hitable for Vec<T>
 where

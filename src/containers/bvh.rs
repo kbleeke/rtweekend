@@ -1,4 +1,5 @@
-use super::{Aabb, Hitable};
+use crate::hit::{HitRecord, Ray};
+use crate::hit::{Aabb, Hitable};
 
 pub struct BvhNode {
     bbox: Aabb,
@@ -7,7 +8,7 @@ pub struct BvhNode {
 }
 
 impl Hitable for BvhNode {
-    fn hit(&self, r: &super::Ray, t_min: f64, t_max: f64) -> Option<super::HitRecord> {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         self.bbox
             .hit(r, t_min, t_max)
             .then(|| {
