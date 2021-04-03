@@ -1,10 +1,11 @@
-use std::sync::Arc;
-
 use crate::math::{dot, vec3, Vec2, Vec3};
 
 mod aabb;
 pub use aabb::surrounding_box;
 pub use aabb::Aabb;
+
+mod material;
+pub use material::*;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Ray {
@@ -85,53 +86,5 @@ pub trait Hitable: Send + Sync {
     fn random(&self, o: &Vec3) -> Vec3 {
         let _ = o;
         vec3(1, 0, 0)
-    }
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Scatter {
-    pub attenuation: Vec3,
-    pub scattered: Ray,
-    pub pdf: f64,
-}
-
-pub trait Material: Send + Sync {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scatter>;
-
-    fn scattering_pdf(&self, r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f64 {
-        let _ = (r_in, rec, scattered);
-        0.0
-    }
-
-    fn emitted(&self, r_in: &Ray, rec: &HitRecord, uv: Vec2, p: &Vec3) -> Vec3 {
-        let _ = (r_in, rec, uv, p);
-        Vec3::zero()
-    }
-}
-pub trait MatPtr {
-    fn into(self) -> Arc<dyn Material>;
-}
-
-impl<T> MatPtr for T
-where
-    T: Material + 'static,
-{
-    fn into(self) -> Arc<dyn Material> {
-        Arc::new(self)
-    }
-}
-
-impl<T> MatPtr for Arc<T>
-where
-    T: Material + 'static,
-{
-    fn into(self) -> Arc<dyn Material> {
-        self
-    }
-}
-
-impl MatPtr for Arc<dyn Material> {
-    fn into(self) -> Arc<dyn Material> {
-        self
     }
 }
