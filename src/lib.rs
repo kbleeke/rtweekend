@@ -4,7 +4,7 @@ use camera::Camera;
 use hit::{Hitable, Ray};
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use materials::{Dielectric, DiffuseLight, Lambertian, Metal};
-use math::{vec2, vec3, Vec3};
+use math::{dot, vec2, vec3, Vec3};
 use objects::sphere::Sphere;
 use objects::{cuboid::Cuboid, rect::XyRect};
 use rand::{thread_rng, Rng};
@@ -23,22 +23,48 @@ pub mod transform;
 pub mod volume;
 
 fn color(r: &Ray, world: &dyn Hitable, depth: usize) -> Vec3 {
-    if let Some(rec) = world.hit(r, 0.001, f64::INFINITY) {
-        let emitted = rec.material.emitted(rec.uv, &rec.p);
-
-        return if depth <= 0 {
-            Vec3::zero()
-        } else if let Some(scatter) = rec.material.scatter(r, &rec) {
-            emitted
-                + scatter.attenuation
-                    * rec.material.scattering_pdf(r, &rec, &scatter.scattered)
-                    * color(&scatter.scattered, world, depth - 1)
-                    / scatter.pdf
-        } else {
-            emitted
-        };
+    if depth <= 0 {
+        return Vec3::zero();
     }
-    Vec3::zero()
+
+    let rec = match world.hit(r, 0.001, f64::INFINITY) {
+        None => return Vec3::zero(),
+        Some(rec) => rec,
+    };
+    let emitted = rec.material.emitted(rec.uv, &rec.p);
+
+    let mut scatter = match rec.material.scatter(r, &rec) {
+        None => return emitted,
+        Some(scatter) => scatter,
+    };
+
+    let on_light = vec3(
+        thread_rng().gen_range(213.0..=343.0),
+        554,
+        thread_rng().gen_range(227.0..=332.0),
+    );
+    let to_light = on_light - rec.p;
+    let distance_squared = to_light.length_squared();
+    let to_light = (to_light.normalize());
+
+    if (dot(to_light, rec.normal) < 0.) {
+        return emitted;
+    }
+
+    let light_area = (343 - 213) * (332 - 227);
+    let light_cosine = (to_light.y().abs());
+    if (light_cosine < 0.000001) {
+        return emitted;
+    }
+
+    scatter.pdf = distance_squared / (light_cosine * light_area as f64);
+    scatter.scattered = Ray::new(rec.p, to_light);
+
+    emitted
+        + scatter.attenuation
+            * rec.material.scattering_pdf(r, &rec, &scatter.scattered)
+            * color(&scatter.scattered, world, depth - 1)
+            / scatter.pdf
 }
 
 pub fn two_spheres() -> Box<dyn Hitable> {

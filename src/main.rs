@@ -10,7 +10,7 @@ use winit::{
 
 pub const NX: usize = 500;
 pub const NY: usize = 500;
-pub const NS: usize = 500;
+pub const NS: usize = 10;
 
 fn main() {
     rayon::ThreadPoolBuilder::new()
