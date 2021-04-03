@@ -56,7 +56,7 @@ where
     }
 
     fn bounding_box(&self) -> Aabb {
-        assert!(self.len() > 0, "hitable list must not be empty");
+        assert!(!self.is_empty(), "hitable list must not be empty");
 
         let mut it = self.iter();
         let first = it.next().unwrap().bounding_box();

@@ -1,6 +1,5 @@
-use std::{thread, time::Instant};
+use std::thread;
 
-use raytrace2::{camera::Camera, math::vec3, Scene};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -35,11 +34,7 @@ fn main() {
     let scene = raytrace2::cornell_box(NX, NY);
 
     thread::spawn(move || {
-        let now = Instant::now();
         let buffer = scene.fill_buf(NX, NY, NS);
-        let elapsed = now.elapsed();
-        let millis = elapsed.as_millis();
-        println!("raytracing: {:0.3}s", millis as f64 / 1000.);
         event_proxy.send_event(buffer).unwrap();
     });
 

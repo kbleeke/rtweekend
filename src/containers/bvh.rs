@@ -1,5 +1,5 @@
-use crate::hit::{HitRecord, Ray};
 use crate::hit::{Aabb, Hitable};
+use crate::hit::{HitRecord, Ray};
 
 pub struct BvhNode {
     bbox: Aabb,
@@ -31,6 +31,6 @@ impl Hitable for BvhNode {
     }
 
     fn bounding_box(&self) -> Aabb {
-        self.bbox.clone()
+        self.bbox
     }
 }

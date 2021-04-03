@@ -5,8 +5,8 @@ pub struct Onb {
 }
 
 impl Onb {
-    pub fn build_from(n: &Vec3) -> Self {
-        let w = n.normalize();
+    pub fn build_from(w: &Vec3) -> Self {
+        let w = w.normalize();
         let a = if w.x().abs() > 0.9 {
             vec3(0, 1, 0)
         } else {

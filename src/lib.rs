@@ -26,7 +26,7 @@ pub mod transform;
 pub mod volume;
 
 fn color(r: &Ray, world: &dyn Hitable, lights: &dyn Hitable, depth: usize) -> Vec3 {
-    if depth <= 0 {
+    if depth == 0 {
         return Vec3::zero();
     }
 
@@ -100,7 +100,7 @@ pub fn two_perlin_spheres() -> Box<dyn Hitable> {
     let noise = Arc::new(Noise::new(4.));
     Box::new([
         Sphere::new(vec3(0., -1000., 0.), 1000., Lambertian::new(noise.clone())),
-        Sphere::new(vec3(0., 2., 0.), 2., Lambertian::new(noise.clone())),
+        Sphere::new(vec3(0., 2., 0.), 2., Lambertian::new(noise)),
     ])
 }
 
@@ -115,7 +115,7 @@ pub fn simple_light() -> Box<dyn Hitable> {
         Box::new(Sphere::new(
             vec3(0., 2., 0.),
             2.,
-            Lambertian::new(noise.clone()),
+            Lambertian::new(noise),
         )),
         Box::new(XyRect::new(
             vec2(3., 5.),
@@ -141,7 +141,7 @@ pub fn cornell_box(nx: usize, ny: usize) -> Scene {
     let green = Lambertian::constant(vec3(0.12, 0.45, 0.15));
     let light = Arc::new(DiffuseLight::new(Constant::new(vec3(15., 15., 15.))));
 
-    let light_rect = XzRect::new(vec2(213., 343.), vec2(227., 332.), 554., light.clone());
+    let light_rect = XzRect::new(vec2(213., 343.), vec2(227., 332.), 554., light);
 
     let lights = light_rect.clone().boxed();
 
@@ -156,7 +156,7 @@ pub fn cornell_box(nx: usize, ny: usize) -> Scene {
             .rotate_y(15.)
             .translate(vec3(265., 0., 295.))
             .boxed(),
-        Cuboid::new(vec3(0., 0., 0.), vec3(165., 165., 165.), white.clone())
+        Cuboid::new(vec3(0., 0., 0.), vec3(165., 165., 165.), white)
             .rotate_y(-18.)
             .translate(vec3(130., 0., 65.))
             .boxed(),
@@ -189,7 +189,7 @@ pub fn cornell_smoke() -> Box<dyn Hitable> {
         .boxed(),
         ConstantMedium::new(
             0.01,
-            Cuboid::new(vec3(0., 0., 0.), vec3(165., 165., 165.), white.clone())
+            Cuboid::new(vec3(0., 0., 0.), vec3(165., 165., 165.), white)
                 .rotate_y(-18.)
                 .translate(vec3(130., 0., 65.))
                 .boxed(),
