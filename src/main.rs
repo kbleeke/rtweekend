@@ -10,7 +10,7 @@ use winit::{
 
 pub const NX: usize = 500;
 pub const NY: usize = 500;
-pub const NS: usize = 10;
+pub const NS: usize = 1000;
 
 fn main() {
     rayon::ThreadPoolBuilder::new()
@@ -32,16 +32,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let cam = Camera::new(
-        vec3(278., 278., -800.),
-        vec3(278., 278., 0.),
-        vec3(0., 1., 0.),
-        40.,
-        NX as f64 / NY as f64,
-    );
-
-    let world = raytrace2::cornell_box();
-    let scene = Scene { world, cam };
+    let scene = raytrace2::cornell_box(NX, NY);
 
     thread::spawn(move || {
         let now = Instant::now();

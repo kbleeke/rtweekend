@@ -26,8 +26,8 @@ impl Hitable for Sphere {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         let oc = r.origin() - self.center;
         let a = dot(r.direction(), r.direction());
-        let half_b = dot(oc, r.direction());
-        let c = dot(oc, oc) - self.radius * self.radius;
+        let half_b = dot(&oc, r.direction());
+        let c = dot(&oc, &oc) - self.radius * self.radius;
         let discriminant = half_b * half_b - a * c;
 
         if discriminant < 0. {

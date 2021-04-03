@@ -4,9 +4,10 @@ use camera::Camera;
 use hit::{Hitable, Ray};
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use materials::{Dielectric, DiffuseLight, Lambertian, Metal};
-use math::{dot, vec2, vec3, Vec3};
+use math::{vec2, vec3, Vec3};
 use objects::sphere::Sphere;
 use objects::{cuboid::Cuboid, rect::XyRect};
+use pdf::{CosinePdf, HitablePdf, MixturePdf, Pdf};
 use rand::{thread_rng, Rng};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use texture::{Constant, Noise};
@@ -18,11 +19,12 @@ pub mod hit;
 pub mod materials;
 pub mod math;
 pub mod objects;
+pub mod pdf;
 pub mod texture;
 pub mod transform;
 pub mod volume;
 
-fn color(r: &Ray, world: &dyn Hitable, depth: usize) -> Vec3 {
+fn color(r: &Ray, world: &dyn Hitable, lights: &dyn Hitable, depth: usize) -> Vec3 {
     if depth <= 0 {
         return Vec3::zero();
     }
@@ -31,39 +33,24 @@ fn color(r: &Ray, world: &dyn Hitable, depth: usize) -> Vec3 {
         None => return Vec3::zero(),
         Some(rec) => rec,
     };
-    let emitted = rec.material.emitted(rec.uv, &rec.p);
+    let emitted = rec.material.emitted(r, &rec, rec.uv, &rec.p);
 
     let mut scatter = match rec.material.scatter(r, &rec) {
         None => return emitted,
         Some(scatter) => scatter,
     };
 
-    let on_light = vec3(
-        thread_rng().gen_range(213.0..=343.0),
-        554,
-        thread_rng().gen_range(227.0..=332.0),
-    );
-    let to_light = on_light - rec.p;
-    let distance_squared = to_light.length_squared();
-    let to_light = (to_light.normalize());
+    let light_pdf = HitablePdf::new(rec.p, lights);
+    let cosine_pdf = CosinePdf::new(&rec.normal);
+    let mixture = MixturePdf::new(light_pdf, cosine_pdf);
 
-    if (dot(to_light, rec.normal) < 0.) {
-        return emitted;
-    }
-
-    let light_area = (343 - 213) * (332 - 227);
-    let light_cosine = (to_light.y().abs());
-    if (light_cosine < 0.000001) {
-        return emitted;
-    }
-
-    scatter.pdf = distance_squared / (light_cosine * light_area as f64);
-    scatter.scattered = Ray::new(rec.p, to_light);
+    scatter.scattered = Ray::new(rec.p, mixture.generate());
+    scatter.pdf = mixture.value(&scatter.scattered.direction());
 
     emitted
         + scatter.attenuation
             * rec.material.scattering_pdf(r, &rec, &scatter.scattered)
-            * color(&scatter.scattered, world, depth - 1)
+            * color(&scatter.scattered, world, lights, depth - 1)
             / scatter.pdf
 }
 
@@ -139,16 +126,28 @@ pub fn simple_light() -> Box<dyn Hitable> {
 }
 
 use crate::objects::rect::{XzRect, YzRect};
-pub fn cornell_box() -> Box<dyn Hitable> {
+pub fn cornell_box(nx: usize, ny: usize) -> Scene {
+    let cam = Camera::new(
+        vec3(278., 278., -800.),
+        vec3(278., 278., 0.),
+        vec3(0., 1., 0.),
+        40.,
+        nx as f64 / ny as f64,
+    );
+
     let red = Lambertian::constant(vec3(0.65, 0.05, 0.05));
     let white = Arc::new(Lambertian::constant(vec3(0.73, 0.73, 0.73)));
     let green = Lambertian::constant(vec3(0.12, 0.45, 0.15));
-    let light = DiffuseLight::new(Constant::new(vec3(15., 15., 15.)));
+    let light = Arc::new(DiffuseLight::new(Constant::new(vec3(15., 15., 15.))));
 
-    Box::new([
+    let light_rect = XzRect::new(vec2(213., 343.), vec2(227., 332.), 554., light.clone());
+
+    let lights = light_rect.clone().boxed();
+
+    let world = Box::new([
         YzRect::new(vec2(0., 555.), vec2(0., 555.), 555., green).boxed() as Box<dyn Hitable>,
         YzRect::new(vec2(0., 555.), vec2(0., 555.), 0., red).boxed(),
-        XzRect::new(vec2(213., 343.), vec2(227., 332.), 554., light).boxed(),
+        light_rect.flip_face().boxed(),
         XzRect::new(vec2(0., 555.), vec2(0., 555.), 555., white.clone()).boxed(),
         XzRect::new(vec2(0., 555.), vec2(0., 555.), 0., white.clone()).boxed(),
         XyRect::new(vec2(0., 555.), vec2(0., 555.), 555., white.clone()).boxed(),
@@ -160,7 +159,9 @@ pub fn cornell_box() -> Box<dyn Hitable> {
             .rotate_y(-18.)
             .translate(vec3(130., 0., 65.))
             .boxed(),
-    ])
+    ]);
+
+    Scene { world, lights, cam }
 }
 
 pub fn cornell_smoke() -> Box<dyn Hitable> {
@@ -199,6 +200,7 @@ pub fn cornell_smoke() -> Box<dyn Hitable> {
 
 pub struct Scene {
     pub world: Box<dyn Hitable>,
+    pub lights: Box<dyn Hitable>,
     pub cam: Camera,
 }
 
@@ -206,6 +208,7 @@ impl Scene {
     pub fn fill_buf(&self, nx: usize, ny: usize, ns: usize) -> Vec<[u8; 4]> {
         let cam = &self.cam;
         let world = &self.world;
+        let lights = &self.lights;
 
         let n = ny * nx;
 
@@ -230,7 +233,7 @@ impl Scene {
                         let v = (j as f64 + rng.gen::<f64>()) / ny as f64;
 
                         let ray = cam.get_ray(u, v);
-                        color(&ray, world.as_ref(), 50)
+                        color(&ray, world.as_ref(), lights.as_ref(), 50)
                     })
                     .sum::<Vec3>();
 

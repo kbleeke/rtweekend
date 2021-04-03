@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use crate::{
     hit::Ray,
-    math::{cross, unit_vector, vec3, Vec3},
+    math::{cross, vec3, Vec3},
 };
 
 pub struct Camera {
@@ -19,9 +19,9 @@ impl Camera {
         let half_width = aspect * half_height;
 
         let origin = lookfrom;
-        let w = unit_vector(lookfrom - lookat);
-        let u = unit_vector(cross(vup, w));
-        let v = cross(w, u);
+        let w = (lookfrom - lookat).normalize();
+        let u = cross(&vup, &w).normalize();
+        let v = cross(&w, &u);
 
         let lower_left_corner = origin - half_width * u - half_height * v - w;
         let horizontal = 2. * half_width * u;

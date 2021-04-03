@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::math::{dot, Vec2, Vec3};
+use crate::math::{dot, vec3, Vec2, Vec3};
 
 mod aabb;
 pub use aabb::surrounding_box;
@@ -22,12 +22,12 @@ impl Ray {
         Self { a, b }
     }
 
-    pub fn direction(&self) -> Vec3 {
-        self.b
+    pub fn direction(&self) -> &Vec3 {
+        &self.b
     }
 
-    pub fn origin(&self) -> Vec3 {
-        self.a
+    pub fn origin(&self) -> &Vec3 {
+        &self.a
     }
 
     pub fn at(&self, t: f64) -> Vec3 {
@@ -53,7 +53,7 @@ impl<'m> HitRecord<'m> {
         uv: Vec2,
         material: &'m dyn Material,
     ) -> Self {
-        let front_face = dot(r.direction(), outward_normal) < 0.;
+        let front_face = dot(r.direction(), &outward_normal) < 0.;
         let normal = if front_face {
             outward_normal
         } else {
@@ -71,7 +71,7 @@ impl<'m> HitRecord<'m> {
     }
 
     pub fn set_face_normal(&mut self, r: &Ray, normal: Vec3) {
-        let front_face = dot(r.direction(), normal) < 0.;
+        let front_face = dot(r.direction(), &normal) < 0.;
         let normal = if front_face { normal } else { -normal };
         self.normal = normal;
         self.front_face = front_face;
@@ -81,6 +81,16 @@ impl<'m> HitRecord<'m> {
 pub trait Hitable: Send + Sync {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
     fn bounding_box(&self) -> Aabb;
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        let _ = (o, v);
+        0.0
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        let _ = o;
+        vec3(1, 0, 0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -94,11 +104,12 @@ pub trait Material: Send + Sync {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scatter>;
 
     fn scattering_pdf(&self, r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f64 {
+        let _ = (r_in, rec, scattered);
         0.0
     }
 
-    fn emitted(&self, uv: Vec2, p: &Vec3) -> Vec3 {
-        let _ = (uv, p);
+    fn emitted(&self, r_in: &Ray, rec: &HitRecord, uv: Vec2, p: &Vec3) -> Vec3 {
+        let _ = (r_in, rec, uv, p);
         Vec3::zero()
     }
 }

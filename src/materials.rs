@@ -5,8 +5,8 @@ use rand::random;
 use crate::{
     hit::{HitRecord, Material, Ray, Scatter},
     math::{
-        dot, random_in_hemisphere, random_in_unit_sphere, reflect, refract, unit_vector, vec3,
-        Vec2, Vec3,
+        dot, random_cosine_direction, random_in_unit_sphere, reflect, refract, vec3, Onb, Vec2,
+        Vec3,
     },
     texture::{self, TexPtr, Texture},
 };
@@ -34,23 +34,27 @@ impl Material for Lambertian {
     fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<Scatter> {
         // let mut target = rec.p + random_in_hemisphere(rec.normal);
         // let mut target = rec.normal + random_in_unit_sphere().normalize();
-        let target = random_in_hemisphere(rec.normal);
+        // let target = random_in_hemisphere(rec.normal);
 
         // if target.near_zero() {
         //     target = rec.normal;
         // }
 
-        let scattered = Ray::new(rec.p, target.normalize());
+        let uvw = Onb::build_from(&rec.normal);
+        let direction = uvw.local(&random_cosine_direction());
+
+        let scattered = Ray::new(rec.p, direction.normalize());
         Some(Scatter {
             attenuation: self.albedo.value(rec.uv, &rec.p),
             scattered,
             // pdf: dot(rec.normal, scattered.direction()) / PI,
-            pdf: 0.5 / PI,
+            // pdf: 0.5 / PI,
+            pdf: dot(uvw.w(), scattered.direction()) / PI,
         })
     }
 
     fn scattering_pdf(&self, _r_in: &Ray, rec: &HitRecord, scattered: &Ray) -> f64 {
-        let cosine = dot(rec.normal, scattered.direction().normalize());
+        let cosine = dot(&rec.normal, &scattered.direction().normalize());
         if cosine < 0. {
             0.
         } else {
@@ -75,9 +79,9 @@ impl Metal {
 
 impl Material for Metal {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scatter> {
-        let reflected = reflect(unit_vector(r_in.direction()), rec.normal);
+        let reflected = reflect(&r_in.direction().normalize(), &rec.normal);
         let scattered = Ray::new(rec.p, reflected + self.fuzz * random_in_unit_sphere());
-        if dot(scattered.direction(), rec.normal) > 0. {
+        if dot(scattered.direction(), &rec.normal) > 0. {
             Some(Scatter {
                 scattered,
                 attenuation: self.albedo,
@@ -107,24 +111,24 @@ impl Dielectric {
 
 impl Material for Dielectric {
     fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<Scatter> {
-        let reflected = reflect(r_in.direction(), rec.normal);
+        let reflected = reflect(r_in.direction(), &rec.normal);
         let attenuation = vec3(1., 1., 1.);
 
-        let (outward_normal, ni_over_nt, cosine) = if dot(r_in.direction(), rec.normal) > 0. {
+        let (outward_normal, ni_over_nt, cosine) = if dot(r_in.direction(), &rec.normal) > 0. {
             (
                 -rec.normal,
                 self.ref_idx,
-                self.ref_idx * dot(r_in.direction(), rec.normal) / r_in.direction().length(),
+                self.ref_idx * dot(r_in.direction(), &rec.normal) / r_in.direction().length(),
             )
         } else {
             (
                 rec.normal,
                 1. / self.ref_idx,
-                -dot(r_in.direction(), rec.normal) / r_in.direction().length(),
+                -dot(r_in.direction(), &rec.normal) / r_in.direction().length(),
             )
         };
 
-        let v = refract(r_in.direction(), outward_normal, ni_over_nt)
+        let v = refract(r_in.direction(), &outward_normal, ni_over_nt)
             .filter(|_| {
                 let reflect_prob = Dielectric::schlick(cosine, self.ref_idx);
                 random::<f64>() >= reflect_prob
@@ -155,7 +159,11 @@ impl Material for DiffuseLight {
         None
     }
 
-    fn emitted(&self, uv: Vec2, p: &Vec3) -> Vec3 {
-        self.texture.value(uv, p)
+    fn emitted(&self, _r_in: &Ray, rec: &HitRecord, uv: Vec2, p: &Vec3) -> Vec3 {
+        if rec.front_face {
+            self.texture.value(uv, p)
+        } else {
+            Vec3::zero()
+        }
     }
 }

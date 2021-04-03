@@ -40,6 +40,7 @@ pub trait HitableExt {
     fn boxed(self) -> Box<dyn Hitable>;
     fn translate(self, offset: Vec3) -> Translate<Self>;
     fn rotate_y(self, angle: f64) -> RotateY<Self>;
+    fn flip_face(self) -> FlipFace<Self>;
 }
 
 impl<T> HitableExt for T
@@ -64,6 +65,10 @@ where
     fn rotate_y(self, angle: f64) -> RotateY<Self> {
         RotateY::new(angle, self)
     }
+
+    fn flip_face(self) -> FlipFace<Self> {
+        FlipFace { ptr: self }
+    }
 }
 
 pub struct Translate<T>
@@ -79,7 +84,7 @@ where
     T: Hitable + 'static,
 {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-        let moved_r = Ray::new(r.origin() - self.offset, r.direction());
+        let moved_r = Ray::new(r.origin() - self.offset, *r.direction());
         self.inner.hit(&moved_r, t_min, t_max).map(|mut rec| {
             rec.p += self.offset;
             rec.set_face_normal(&moved_r, rec.normal);
@@ -149,8 +154,8 @@ where
     T: Hitable,
 {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-        let mut origin = r.origin();
-        let mut direction = r.direction();
+        let mut origin = *r.origin();
+        let mut direction = *r.direction();
 
         origin[0] = self.cos_theta * r.origin().x() - self.sin_theta * r.origin().z();
         origin[2] = self.sin_theta * r.origin().x() + self.cos_theta * r.origin().z();
@@ -178,5 +183,28 @@ where
 
     fn bounding_box(&self) -> Aabb {
         self.bbox
+    }
+}
+
+pub struct FlipFace<T>
+where
+    T: ?Sized,
+{
+    ptr: T,
+}
+
+impl<T> Hitable for FlipFace<T>
+where
+    T: Hitable,
+{
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        self.ptr.hit(r, t_min, t_max).map(|mut rec| {
+            rec.front_face = !rec.front_face;
+            rec
+        })
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        self.ptr.bounding_box()
     }
 }

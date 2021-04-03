@@ -2,7 +2,7 @@ use itertools::iproduct;
 use once_cell::sync::Lazy;
 use rand::{thread_rng, Rng};
 
-use crate::math::{dot, unit_vector, vec3, Vec2, Vec3};
+use crate::math::{dot, vec3, Vec2, Vec3};
 
 use super::Texture;
 
@@ -56,7 +56,7 @@ fn perlin_interp(c: [[[Vec3; 2]; 2]; 2], uvw: Vec3) -> f64 {
         })
         .map(|(ijk, c)| {
             let weight_v = uvw - ijk;
-            (ijk * uuvvww + (1. - ijk) * (1. - uuvvww)).product() * dot(c, weight_v)
+            (ijk * uuvvww + (1. - ijk) * (1. - uuvvww)).product() * dot(&c, &weight_v)
         })
         .sum()
 }
@@ -84,7 +84,9 @@ fn perlin_generate() -> Box<[Vec3]> {
     let mut rng = thread_rng();
 
     (0..256)
-        .map(|_| unit_vector(-1. + 2. * vec3(rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>())))
+        .map(|_| {
+            (-1. + 2. * vec3(rng.gen::<f64>(), rng.gen::<f64>(), rng.gen::<f64>())).normalize()
+        })
         .collect()
 }
 

@@ -1,6 +1,6 @@
 use rand::{thread_rng, Rng};
 
-fn pdf(x: f64) -> f64 {
+fn pdf(_x: f64) -> f64 {
     0.5
 }
 
@@ -9,7 +9,7 @@ fn main() {
 
     let n = 1_000_000;
     let sum: f64 = (0..n)
-        .map(|i| {
+        .map(|_i| {
             let x: f64 = rng.gen_range::<f64, _>(0.0..=2.0);
             x * x / pdf(x)
         })

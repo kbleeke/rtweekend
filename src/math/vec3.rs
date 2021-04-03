@@ -88,29 +88,29 @@ mod linalg {
     use super::Vec3;
 
     #[inline(always)]
-    pub fn dot(v1: Vec3, v2: Vec3) -> f64 {
+    pub fn dot(v1: &Vec3, v2: &Vec3) -> f64 {
         v1.e.dot(&v2.e)
     }
 
     #[inline(always)]
-    pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
+    pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
         v - 2. * dot(v, n) * n
     }
 
     #[inline(always)]
-    pub fn cross(v1: Vec3, v2: Vec3) -> Vec3 {
+    pub fn cross(v1: &Vec3, v2: &Vec3) -> Vec3 {
         Vec3 {
             e: v1.e.cross(&v2.e),
         }
     }
 
-    pub fn unit_vector(v: Vec3) -> Vec3 {
+    pub fn unit_vector(v: &Vec3) -> Vec3 {
         v.normalize()
     }
 
-    pub fn refract(v: Vec3, n: Vec3, ni_over_nt: f64) -> Option<Vec3> {
+    pub fn refract(v: &Vec3, n: &Vec3, ni_over_nt: f64) -> Option<Vec3> {
         let uv = unit_vector(v);
-        let dt = dot(uv, n);
+        let dt = dot(&uv, n);
         let discriminant = 1. - ni_over_nt * ni_over_nt * (1. - dt * dt);
         if discriminant > 0. {
             Some(ni_over_nt * (uv - n * dt) - n * f64::sqrt(discriminant))
@@ -187,6 +187,58 @@ mod ops {
         };
     }
 
+    op!(Add, add, +);
+    op!(Sub, sub, -);
+    op!(Mul, mul, *);
+    op!(Div, div, /);
+
+    macro_rules! op_ref {
+        ($traitname:ty, $f: ident, $o:tt) => {
+            impl $traitname for &Vec3 {
+                type Output = Vec3;
+
+                fn $f(self, rhs: Vec3) -> Self::Output {
+                    Vec3::new(self.e.x $o rhs.e.x,
+                                self.e.y $o rhs.e.y,
+                                self.e.z $o rhs.e.z)
+                }
+            }
+        };
+    }
+
+    op_ref!(Add<Vec3>, add, +);
+    op_ref!(Sub<Vec3>, sub, -);
+    op_ref!(Mul<Vec3>, mul, *);
+    op_ref!(Div<Vec3>, div, /);
+
+    macro_rules! op_ref2 {
+        ($traitname:ty, $f: ident, $o:tt) => {
+            impl $traitname for Vec3 {
+                type Output = Vec3;
+
+                fn $f(self, rhs: &Vec3) -> Self::Output {
+                    Vec3::new(self.e.x $o rhs.e.x,
+                                self.e.y $o rhs.e.y,
+                                self.e.z $o rhs.e.z)
+                }
+            }
+            impl $traitname for &Vec3 {
+                type Output = Vec3;
+
+                fn $f(self, rhs: &Vec3) -> Self::Output {
+                    Vec3::new(self.e.x $o rhs.e.x,
+                                self.e.y $o rhs.e.y,
+                                self.e.z $o rhs.e.z)
+                }
+            }
+        };
+    }
+
+    op_ref2!(Add<&Vec3>, add, +);
+    op_ref2!(Sub<&Vec3>, sub, -);
+    op_ref2!(Mul<&Vec3>, mul, *);
+    op_ref2!(Div<&Vec3>, div, /);
+
     macro_rules! op_assign {
         ($traitname:ty, $f: ident, $o:tt) => {
             impl $traitname for Vec3 {
@@ -199,11 +251,6 @@ mod ops {
         };
     }
 
-    op!(Add, add, +);
-    op!(Sub, sub, -);
-    op!(Mul, mul, *);
-    op!(Div, div, /);
-
     op_assign!(AddAssign, add_assign, +=);
     op_assign!(SubAssign, sub_assign, -=);
     op_assign!(MulAssign, mul_assign, *=);
@@ -211,6 +258,14 @@ mod ops {
 
     macro_rules! op_scalar {
         ($trt1:ty, $trt2:ty, $f: ident, $o:tt) => {
+            impl $trt1 for &Vec3 {
+                type Output = Vec3;
+
+                fn $f(self, rhs: f64) -> Self::Output {
+                    self $o super::vec3(rhs, rhs, rhs)
+                }
+            }
+
             impl $trt1 for Vec3 {
                 type Output = Vec3;
 
@@ -233,6 +288,23 @@ mod ops {
     op_scalar!(Sub<f64>, Sub<Vec3>, sub, -);
     op_scalar!(Mul<f64>, Mul<Vec3>, mul, *);
     op_scalar!(Div<f64>, Div<Vec3>, div, /);
+
+    macro_rules! op_scalar2 {
+        ($trt2:ty, $f: ident, $o:tt) => {
+            impl $trt2 for f64 {
+                type Output = Vec3;
+
+                fn $f(self, rhs: &Vec3) -> Self::Output {
+                    super::vec3(self, self, self) $o rhs
+                }
+            }
+        };
+    }
+
+    op_scalar2!(Add<&Vec3>, add, +);
+    op_scalar2!(Sub<&Vec3>, sub, -);
+    op_scalar2!(Mul<&Vec3>, mul, *);
+    op_scalar2!(Div<&Vec3>, div, /);
 
     impl MulAssign<f64> for Vec3 {
         fn mul_assign(&mut self, rhs: f64) {
@@ -258,9 +330,9 @@ where
     }
 }
 
-pub fn random_in_hemisphere(normal: Vec3) -> Vec3 {
+pub fn random_in_hemisphere(normal: &Vec3) -> Vec3 {
     let in_unit_sphere = random_in_unit_sphere();
-    if dot(in_unit_sphere, normal) > 0. {
+    if dot(&in_unit_sphere, normal) > 0. {
         in_unit_sphere
     } else {
         -in_unit_sphere
