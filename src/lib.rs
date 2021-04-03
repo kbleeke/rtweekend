@@ -217,12 +217,10 @@ pub fn cornell_specular(nx: usize, ny: usize) -> Scene {
     let glass = Arc::new(Dielectric::new(1.5));
 
     let light_rect = XzRect::new(vec2(213., 343.), vec2(227., 332.), 554., light).shared();
-    let sphere = Sphere::new(vec3(190, 90, 190), 90., glass.clone()).shared();
-    let cube = Cuboid::new(vec3(0., 0., 0.), vec3(165., 330., 165.), white.clone())
-        .rotate_y(15.)
-        .translate(vec3(265., 0., 295.))
+    let sphere = Sphere::new(vec3(190, 90, 190), 90., glass).shared();
+    let cube = Sphere::new(vec3(430., 90., 250.), 90., aluminum)
         .shared();
-    let lights = Box::new([light_rect.clone(), sphere.clone()]);
+    let lights = Box::new([light_rect.clone(), sphere.clone(), cube.clone()]);
 
     let world = Box::new([
         YzRect::new(vec2(0., 555.), vec2(0., 555.), 555., green).shared(),
@@ -230,9 +228,9 @@ pub fn cornell_specular(nx: usize, ny: usize) -> Scene {
         light_rect.flip_face().shared(),
         XzRect::new(vec2(0., 555.), vec2(0., 555.), 555., white.clone()).shared(),
         XzRect::new(vec2(0., 555.), vec2(0., 555.), 0., white.clone()).shared(),
-        XyRect::new(vec2(0., 555.), vec2(0., 555.), 555., white).shared(),
-        cube.clone(),
-        sphere.clone(),
+        XyRect::new(vec2(0., 555.), vec2(0., 555.), 555., white.clone()).shared(),
+        cube,
+        sphere,
     ]);
 
     Scene {

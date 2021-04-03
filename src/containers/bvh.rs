@@ -33,4 +33,12 @@ impl Hitable for BvhNode {
     fn bounding_box(&self) -> Aabb {
         self.bbox
     }
+
+    fn pdf_value(&self, o: &crate::math::Vec3, v: &crate::math::Vec3) -> f64 {
+        todo!()
+    }
+
+    fn random(&self, o: &crate::math::Vec3) -> crate::math::Vec3 {
+        todo!()
+    }
 }

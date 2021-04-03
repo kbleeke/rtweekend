@@ -4,7 +4,7 @@ use rand::random;
 
 use crate::{
     hit::{HitRecord, Hitable, Material, Ray, Scatter},
-    math::{random_in_unit_sphere, vec3, Vec2},
+    math::{random_in_unit_sphere, vec3, Vec2, Vec3},
     texture::{TexPtr, Texture},
 };
 
@@ -63,6 +63,14 @@ impl Hitable for ConstantMedium {
 
     fn bounding_box(&self) -> crate::hit::Aabb {
         self.boundary.bounding_box()
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        todo!()
+    }
+
+    fn random(&self, o: &Vec3) ->Vec3 {
+        todo!()
     }
 }
 

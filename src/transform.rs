@@ -28,6 +28,14 @@ where
     fn bounding_box(&self) -> Aabb {
         self.inner.bounding_box()
     }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        self.inner.pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        self.inner.random(o)
+    }
 }
 
 pub fn flip_normals<T>(inner: T) -> FlipNormals<T>
@@ -102,6 +110,14 @@ where
     fn bounding_box(&self) -> Aabb {
         let bbox = self.inner.bounding_box();
         Aabb::new(bbox.min() + self.offset, bbox.max() + self.offset)
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        self.inner.pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        self.inner.random(o)
     }
 }
 
@@ -191,6 +207,14 @@ where
     fn bounding_box(&self) -> Aabb {
         self.bbox
     }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        self.inner.pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        self.inner.random(o)
+    }
 }
 
 pub struct FlipFace<T>
@@ -213,5 +237,13 @@ where
 
     fn bounding_box(&self) -> Aabb {
         self.ptr.bounding_box()
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        self.ptr.pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        self.ptr.random(o)
     }
 }

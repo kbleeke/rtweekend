@@ -1,11 +1,11 @@
 pub mod vec2;
-mod vec3;
+mod vec3_impl;
 
 use std::f64::consts::PI;
 
 use rand::random;
 pub use vec2::{vec2, Vec2};
-pub use vec3::*;
+pub use vec3_impl::*;
 
 mod onb;
 pub use onb::Onb;
