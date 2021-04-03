@@ -78,10 +78,9 @@ impl Isotropic {
 
 impl Material for Isotropic {
     fn scatter(&self, _r_in: &Ray, rec: &HitRecord) -> Option<Scatter> {
-        Some(Scatter {
-            scattered: Ray::new(rec.p, random_in_unit_sphere()),
-            attenuation: self.albedo.value(rec.uv, &rec.p),
-            pdf: 0.0,
-        })
+        Some(Scatter::new_specular(
+            Ray::new(rec.p, random_in_unit_sphere()),
+            self.albedo.value(rec.uv, &rec.p),
+        ))
     }
 }

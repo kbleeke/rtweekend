@@ -1,9 +1,11 @@
 use std::{f64::consts::PI, sync::Arc};
 
+use rand::random;
+
 use crate::{
     hit::MatPtr,
     hit::{Aabb, HitRecord, Hitable, Material, Ray},
-    math::{dot, vec2, Vec2, Vec3},
+    math::{dot, vec2, vec3, Onb, Vec2, Vec3},
 };
 
 pub struct Sphere {
@@ -58,13 +60,40 @@ impl Hitable for Sphere {
     fn bounding_box(&self) -> Aabb {
         Aabb::new(self.center - self.radius, self.center + self.radius)
     }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        if self.hit(&Ray::new(*o, *v), 0.001, f64::INFINITY).is_some() {
+            let cos_theta_max =
+                f64::sqrt(1. - self.radius * self.radius / (self.center - o).length_squared());
+            let solid_angle = 2. * PI * (1. - cos_theta_max);
+            1. / solid_angle
+        } else {
+            0.0
+        }
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        let direction = self.center - o;
+        let distance_squared = direction.length_squared();
+        let uvw = Onb::build_from(&direction);
+
+        uvw.local(&random_to_sphere(&self.radius, &distance_squared))
+    }
+}
+
+fn random_to_sphere(radius: &f64, distance_squared: &f64) -> Vec3 {
+    let r1: f64 = random();
+    let r2: f64 = random();
+    let z = 1. + r2 * (f64::sqrt(1. - radius * radius / distance_squared) - 1.);
+
+    let phi = 2. * PI * r1;
+    let (sin, cos) = phi.sin_cos();
+    let sq = f64::sqrt(1. - z * z);
+
+    vec3(cos * sq, sin * sq, z)
 }
 
 fn get_sphere_uv(p: Vec3) -> Vec2 {
-    // let phi = f64::atan2(p.z(), p.x());
-    // let theta = f64::asin(p.y());
-    // vec2(1. - (phi + PI) / (2. * PI), (theta + FRAC_PI_2) / PI)
-
     let theta = f64::acos(-p.y());
     let phi = f64::atan2(-p.z(), p.x()) + PI;
     vec2(phi / (2. * PI), theta / PI)

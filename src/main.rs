@@ -1,5 +1,6 @@
 use std::thread;
 
+use clap::Clap;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -7,11 +8,19 @@ use winit::{
     window::WindowBuilder,
 };
 
-pub const NX: usize = 500;
-pub const NY: usize = 500;
-pub const NS: usize = 1000;
+#[derive(Debug, clap::Clap)]
+struct Opts {
+    #[clap(default_value = "500")]
+    ns: usize,
+    #[clap(default_value = "500")]
+    nx: usize,
+    #[clap(default_value = "500")]
+    ny: usize,
+}
 
 fn main() {
+    let Opts { ns, nx, ny } = dbg!(Opts::parse());
+
     rayon::ThreadPoolBuilder::new()
         .num_threads(8)
         .build_global()
@@ -20,21 +29,21 @@ fn main() {
     let event_loop = EventLoop::with_user_event();
     let event_proxy = event_loop.create_proxy();
     let window = WindowBuilder::new()
-        .with_inner_size(PhysicalSize::new(NX as u32, NY as u32))
+        .with_inner_size(PhysicalSize::new(nx as u32, ny as u32))
         .build(&event_loop)
         .unwrap();
     let size = window.inner_size();
 
     let surface = pixels::SurfaceTexture::new(size.width, size.height, &window);
-    let mut pixels = pixels::PixelsBuilder::new(NX as u32, NY as u32, surface)
+    let mut pixels = pixels::PixelsBuilder::new(nx as u32, ny as u32, surface)
         .texture_format(wgpu::TextureFormat::Rgba8UnormSrgb)
         .build()
         .unwrap();
 
-    let scene = raytrace2::cornell_box(NX, NY);
+    let scene = raytrace2::cornell_specular(nx, ny);
 
     thread::spawn(move || {
-        let buffer = scene.fill_buf(NX, NY, NS);
+        let buffer = scene.fill_buf(nx, ny, ns);
         event_proxy.send_event(buffer).unwrap();
     });
 

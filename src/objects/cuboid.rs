@@ -4,7 +4,6 @@ use crate::{
     math::{vec2, Vec3},
     transform::HitableExt,
 };
-
 pub struct Cuboid {
     pmin: Vec3,
     pmax: Vec3,
@@ -78,5 +77,13 @@ impl Hitable for Cuboid {
 
     fn bounding_box(&self) -> Aabb {
         Aabb::new(self.pmin, self.pmax)
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        self.faces.pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        self.faces.random(o)
     }
 }

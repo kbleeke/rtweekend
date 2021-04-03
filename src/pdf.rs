@@ -3,14 +3,9 @@ use std::f64::consts::PI;
 use rand::random;
 
 use crate::{
-    hit::Hitable,
+    hit::{Hitable, Pdf},
     math::{dot, random_cosine_direction, Onb, Vec3},
 };
-
-pub trait Pdf {
-    fn value(&self, direction: &Vec3) -> f64;
-    fn generate(&self) -> Vec3;
-}
 
 pub struct CosinePdf {
     uvw: Onb,
@@ -54,16 +49,6 @@ impl<T> Pdf for HitablePdf<T>
 where
     T: Hitable,
 {
-    fn value(&self, direction: &Vec3) -> f64 {
-        self.ptr.pdf_value(&self.o, direction)
-    }
-
-    fn generate(&self) -> Vec3 {
-        self.ptr.random(&self.o)
-    }
-}
-
-impl Pdf for HitablePdf<&dyn Hitable> {
     fn value(&self, direction: &Vec3) -> f64 {
         self.ptr.pdf_value(&self.o, direction)
     }

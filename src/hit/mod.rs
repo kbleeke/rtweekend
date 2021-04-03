@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::math::{dot, vec3, Vec2, Vec3};
 
 mod aabb;
@@ -86,5 +88,62 @@ pub trait Hitable: Send + Sync {
     fn random(&self, o: &Vec3) -> Vec3 {
         let _ = o;
         vec3(1, 0, 0)
+    }
+}
+
+impl Hitable for Box<dyn Hitable> {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        (&**self).hit(r, t_min, t_max)
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        (&**self).bounding_box()
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        (&**self).pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        (&**self).random(o)
+    }
+}
+
+impl Hitable for Arc<dyn Hitable> {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        (&**self).hit(r, t_min, t_max)
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        (&**self).bounding_box()
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        (&**self).pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        (&**self).random(o)
+    }
+}
+
+impl<T> Hitable for &'_ T
+where
+    T: ?Sized + Hitable,
+{
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        (*self).hit(r, t_min, t_max)
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        (*self).bounding_box()
+    }
+
+    fn pdf_value(&self, o: &Vec3, v: &Vec3) -> f64 {
+        (*self).pdf_value(o, v)
+    }
+
+    fn random(&self, o: &Vec3) -> Vec3 {
+        (*self).random(o)
     }
 }

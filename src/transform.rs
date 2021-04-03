@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use itertools::iproduct;
 
 use crate::{
@@ -41,6 +43,7 @@ pub trait HitableExt {
     fn translate(self, offset: Vec3) -> Translate<Self>;
     fn rotate_y(self, angle: f64) -> RotateY<Self>;
     fn flip_face(self) -> FlipFace<Self>;
+    fn shared(self) -> Arc<dyn Hitable>;
 }
 
 impl<T> HitableExt for T
@@ -53,6 +56,10 @@ where
 
     fn boxed(self) -> Box<dyn Hitable> {
         Box::new(self)
+    }
+
+    fn shared(self) -> Arc<dyn Hitable> {
+        Arc::new(self)
     }
 
     fn translate(self, offset: Vec3) -> Translate<Self> {

@@ -4,11 +4,37 @@ use crate::math::{Vec2, Vec3};
 
 use super::{HitRecord, Ray};
 
-#[derive(Debug, Clone, Copy, Default)]
+pub enum ScatterKind {
+    Diffuse { pdf: Box<dyn Pdf> },
+    Specular { specular_ray: Ray },
+}
 pub struct Scatter {
-    pub attenuation: Vec3,
-    pub scattered: Ray,
-    pub pdf: f64,
+    attenuation: Vec3,
+    kind: ScatterKind,
+}
+
+impl Scatter {
+    pub fn new_diffuse(attenuation: Vec3, pdf: Box<dyn Pdf>) -> Self {
+        Self {
+            attenuation,
+            kind: ScatterKind::Diffuse { pdf },
+        }
+    }
+
+    pub fn new_specular(ray: Ray, attenuation: Vec3) -> Self {
+        Self {
+            attenuation,
+            kind: ScatterKind::Specular { specular_ray: ray },
+        }
+    }
+
+    pub fn attenuation(&self) -> &Vec3 {
+        &self.attenuation
+    }
+
+    pub fn kind(&self) -> &ScatterKind {
+        &self.kind
+    }
 }
 
 pub trait Material: Send + Sync {
@@ -24,7 +50,6 @@ pub trait Material: Send + Sync {
         Vec3::zero()
     }
 }
-
 
 pub trait MatPtr {
     fn into(self) -> Arc<dyn Material>;
@@ -51,5 +76,20 @@ where
 impl MatPtr for Arc<dyn Material> {
     fn into(self) -> Arc<dyn Material> {
         self
+    }
+}
+
+pub trait Pdf {
+    fn value(&self, direction: &Vec3) -> f64;
+    fn generate(&self) -> Vec3;
+}
+
+impl Pdf for &dyn Pdf {
+    fn value(&self, direction: &Vec3) -> f64 {
+        (*self).value(direction)
+    }
+
+    fn generate(&self) -> Vec3 {
+        (*self).generate()
     }
 }

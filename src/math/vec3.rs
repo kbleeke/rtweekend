@@ -6,6 +6,7 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
+    #[inline(always)]
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self {
             e: na::Vector3::new(x, y, z),
@@ -75,6 +76,7 @@ impl Vec3 {
     }
 }
 
+#[inline(always)]
 pub fn vec3<F1, F2, F3>(x: F1, y: F2, z: F3) -> Vec3
 where
     F1: Into<f64>,
@@ -108,15 +110,12 @@ mod linalg {
         v.normalize()
     }
 
-    pub fn refract(v: &Vec3, n: &Vec3, ni_over_nt: f64) -> Option<Vec3> {
-        let uv = unit_vector(v);
-        let dt = dot(&uv, n);
-        let discriminant = 1. - ni_over_nt * ni_over_nt * (1. - dt * dt);
-        if discriminant > 0. {
-            Some(ni_over_nt * (uv - n * dt) - n * f64::sqrt(discriminant))
-        } else {
-            None
-        }
+    pub fn refract(uv: &Vec3, n: &Vec3, etai_over_etat: f64) -> Vec3 {
+        let nuv = -*uv;
+        let cos_theta = f64::min(dot(&nuv, &n), 1.0);
+        let r_out_perp = etai_over_etat * (uv + cos_theta * n);
+        let r_out_parallel = -f64::sqrt(f64::abs(1.0 - r_out_perp.length_squared())) * n;
+        r_out_perp + r_out_parallel
     }
 }
 pub use linalg::*;

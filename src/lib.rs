@@ -1,13 +1,13 @@
 use std::{f64::consts::FRAC_PI_4, sync::Arc};
 
 use camera::Camera;
-use hit::{Hitable, Ray};
+use hit::{Hitable, Pdf, Ray, ScatterKind};
 use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use materials::{Dielectric, DiffuseLight, Lambertian, Metal};
 use math::{vec2, vec3, Vec3};
 use objects::sphere::Sphere;
 use objects::{cuboid::Cuboid, rect::XyRect};
-use pdf::{CosinePdf, HitablePdf, MixturePdf, Pdf};
+use pdf::{HitablePdf, MixturePdf};
 use rand::{thread_rng, Rng};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use texture::{Constant, Noise};
@@ -25,34 +25,52 @@ pub mod texture;
 pub mod transform;
 pub mod volume;
 
-fn color(r: &Ray, world: &dyn Hitable, lights: &dyn Hitable, depth: usize) -> Vec3 {
+fn color(
+    r: &Ray,
+    world: &dyn Hitable,
+    lights: Option<&dyn Hitable>,
+    background: &Vec3,
+    depth: usize,
+) -> Vec3 {
     if depth == 0 {
         return Vec3::zero();
     }
 
     let rec = match world.hit(r, 0.001, f64::INFINITY) {
-        None => return Vec3::zero(),
+        None => return *background,
         Some(rec) => rec,
     };
     let emitted = rec.material.emitted(r, &rec, rec.uv, &rec.p);
 
-    let mut scatter = match rec.material.scatter(r, &rec) {
+    let scatter = match rec.material.scatter(r, &rec) {
         None => return emitted,
         Some(scatter) => scatter,
     };
 
-    let light_pdf = HitablePdf::new(rec.p, lights);
-    let cosine_pdf = CosinePdf::new(&rec.normal);
-    let mixture = MixturePdf::new(light_pdf, cosine_pdf);
+    match scatter.kind() {
+        ScatterKind::Diffuse { pdf } => {
+            let (scattered, pdf) = if let Some(lights) = lights {
+                let light_pdf = HitablePdf::new(rec.p, lights);
+                let mixture = MixturePdf::new(light_pdf, pdf.as_ref());
 
-    scatter.scattered = Ray::new(rec.p, mixture.generate());
-    scatter.pdf = mixture.value(&scatter.scattered.direction());
+                let scattered = Ray::new(rec.p, mixture.generate());
+                (scattered, mixture.value(scattered.direction()))
+            } else {
+                let mixture = pdf.as_ref();
+                let scattered = Ray::new(rec.p, mixture.generate());
+                (scattered, mixture.value(scattered.direction()))
+            };
 
-    emitted
-        + scatter.attenuation
-            * rec.material.scattering_pdf(r, &rec, &scatter.scattered)
-            * color(&scatter.scattered, world, lights, depth - 1)
-            / scatter.pdf
+            emitted
+                + scatter.attenuation()
+                    * rec.material.scattering_pdf(r, &rec, &scattered)
+                    * color(&scattered, world, lights, background, depth - 1)
+                    / pdf
+        }
+        ScatterKind::Specular { specular_ray } => {
+            scatter.attenuation() * color(&specular_ray, world, lights, background, depth - 1)
+        }
+    }
 }
 
 pub fn two_spheres() -> Box<dyn Hitable> {
@@ -70,8 +88,16 @@ pub fn two_spheres() -> Box<dyn Hitable> {
     ])
 }
 
-pub fn four_spheres() -> Box<dyn Hitable> {
-    Box::new([
+pub fn four_spheres(nx: usize, ny: usize) -> Scene {
+    let cam = Camera::new(
+        vec3(-2, 2, 1),
+        vec3(0., 0., -1.),
+        vec3(0., 1., 0.),
+        20.,
+        nx as f64 / ny as f64,
+    );
+
+    let world = Box::new([
         Sphere::new(
             vec3(0., 0., -1.),
             0.5,
@@ -85,7 +111,14 @@ pub fn four_spheres() -> Box<dyn Hitable> {
         Sphere::new(vec3(1., 0., -1.), 0.5, Metal::new(vec3(0.8, 0.6, 0.2), 0.3)),
         Sphere::new(vec3(-1., 0., -1.), 0.5, Dielectric::new(1.5)),
         Sphere::new(vec3(-1., 0., -1.), -0.45, Dielectric::new(1.5)),
-    ])
+    ]);
+
+    Scene {
+        world,
+        lights: None,
+        cam,
+        background: vec3(0.70, 0.80, 1.00),
+    }
 }
 
 pub fn cam_test() -> Box<dyn Hitable> {
@@ -112,11 +145,7 @@ pub fn simple_light() -> Box<dyn Hitable> {
             1000.,
             Lambertian::new(noise.clone()),
         )) as Box<dyn Hitable>,
-        Box::new(Sphere::new(
-            vec3(0., 2., 0.),
-            2.,
-            Lambertian::new(noise),
-        )),
+        Box::new(Sphere::new(vec3(0., 2., 0.), 2., Lambertian::new(noise))),
         Box::new(XyRect::new(
             vec2(3., 5.),
             vec2(1., 3.),
@@ -162,7 +191,56 @@ pub fn cornell_box(nx: usize, ny: usize) -> Scene {
             .boxed(),
     ]);
 
-    Scene { world, lights, cam }
+    Scene {
+        world,
+        lights: Some(lights),
+        cam,
+        background: Vec3::zero(),
+    }
+}
+
+pub fn cornell_specular(nx: usize, ny: usize) -> Scene {
+    let cam = Camera::new(
+        vec3(278., 278., -800.),
+        vec3(278., 278., 0.),
+        vec3(0., 1., 0.),
+        40.,
+        nx as f64 / ny as f64,
+    );
+
+    let red = Lambertian::constant(vec3(0.65, 0.05, 0.05));
+    let white = Arc::new(Lambertian::constant(vec3(0.73, 0.73, 0.73)));
+    let green = Lambertian::constant(vec3(0.12, 0.45, 0.15));
+    let light = Arc::new(DiffuseLight::new(Constant::new(vec3(15., 15., 15.))));
+
+    let aluminum = Metal::new(vec3(0.8, 0.85, 0.88), 0.0);
+    let glass = Arc::new(Dielectric::new(1.5));
+
+    let light_rect = XzRect::new(vec2(213., 343.), vec2(227., 332.), 554., light).shared();
+    let sphere = Sphere::new(vec3(190, 90, 190), 90., glass.clone()).shared();
+    let cube = Cuboid::new(vec3(0., 0., 0.), vec3(165., 330., 165.), white.clone())
+        .rotate_y(15.)
+        .translate(vec3(265., 0., 295.))
+        .shared();
+    let lights = Box::new([light_rect.clone(), sphere.clone()]);
+
+    let world = Box::new([
+        YzRect::new(vec2(0., 555.), vec2(0., 555.), 555., green).shared(),
+        YzRect::new(vec2(0., 555.), vec2(0., 555.), 0., red).shared(),
+        light_rect.flip_face().shared(),
+        XzRect::new(vec2(0., 555.), vec2(0., 555.), 555., white.clone()).shared(),
+        XzRect::new(vec2(0., 555.), vec2(0., 555.), 0., white.clone()).shared(),
+        XyRect::new(vec2(0., 555.), vec2(0., 555.), 555., white).shared(),
+        cube.clone(),
+        sphere.clone(),
+    ]);
+
+    Scene {
+        world,
+        lights: Some(lights),
+        cam,
+        background: Vec3::zero(),
+    }
 }
 
 pub fn cornell_smoke() -> Box<dyn Hitable> {
@@ -201,8 +279,9 @@ pub fn cornell_smoke() -> Box<dyn Hitable> {
 
 pub struct Scene {
     pub world: Box<dyn Hitable>,
-    pub lights: Box<dyn Hitable>,
+    pub lights: Option<Box<dyn Hitable>>,
     pub cam: Camera,
+    pub background: Vec3,
 }
 
 impl Scene {
@@ -234,7 +313,13 @@ impl Scene {
                         let v = (j as f64 + rng.gen::<f64>()) / ny as f64;
 
                         let ray = cam.get_ray(u, v);
-                        color(&ray, world.as_ref(), lights.as_ref(), 50)
+                        color(
+                            &ray,
+                            world.as_ref(),
+                            lights.as_deref(),
+                            &self.background,
+                            50,
+                        )
                     })
                     .sum::<Vec3>();
 
